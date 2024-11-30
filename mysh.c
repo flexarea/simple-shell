@@ -17,10 +17,12 @@ int main (int argc, char * argv[]) {
             puts("ive forked");
             //execv(token,args);
         } */
+        char * cmd = token;
         while ((token = strtok(NULL, " ")) != NULL) {
             printf("%s\n", token);
             if (strcmp(token,"<") == 0) {
                 puts("in redirect");
+
             }
             if (strcmp(token,">") == 0) {
                 puts("out redirect");

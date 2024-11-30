@@ -1,1 +1,11 @@
 Grayson And Esdras
+
+Functionality:
+Input redirection: ./program < input-file
+Fork?, Open input-file, use dup to set fd stdin to input-file, exec program, kill and reprompt
+
+Output redirection: ./program > output-file (append) or ./program >> output-file (truc)
+Fork?, open output file (append or trunc), use dup to set fd stdout to output file, exec program, kill and reprompt
+
+Piping: ./program1 | ./program2
+Fork?, Fork for both programs, set up a pipe (man 2 pipe?) between them, exec both programs.
