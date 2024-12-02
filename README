@@ -8,4 +8,15 @@ Output redirection: ./program > output-file (append) or ./program >> output-file
 Open output file (append or trunc), use dup to set fd stdout to output file, exec program, reprompt
 
  ./program1 | ./program2
-Fork for both programs, set up a pipe (man 2 pipe?) between them, exec both programs, reprompt
+Fork for both programs?, set up a pipe (man 2 pipe?) between them, exec both programs, reprompt
+
+Test Files:
+test_in.c: contains a simple program that reads a line from stdin
+- f_in.txt: file containing a line to be read by test_in
+test_out.c: Writes a string to stdout
+- f_out.txt: file that should be written to
+
+Makefile:
+"make all" to make all c files into executibles. (implemented horrifically I know)
+"make clean" to remove all executibles.
+"make file.c" to make a specific file. 
