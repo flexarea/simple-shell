@@ -22,6 +22,12 @@ char * strip_new_line (char * input) {
     out = (char *) realloc(out, counter);
     return out;
 }
+void free_tokens (char ** tokens, int length) {
+    for (int i = 0; i < length; i++) {
+        free(tokens[i]);
+    }
+    free(tokens);
+}
 
 int main (int argc, char * argv[]) {
     printf("Mysh: ");
@@ -39,8 +45,7 @@ int main (int argc, char * argv[]) {
             free(first_token);
             return 0;
         }
-        tokens[counter++] = token; // The ++ is on purpose!
-        free(first_token);
+        tokens[counter++] = first_token; // The ++ is on purpose!
         while ((token = strtok(NULL, " ")) != NULL) {
             int initial_fd;
             pid_t child;
@@ -67,16 +72,15 @@ int main (int argc, char * argv[]) {
                         break;
                 }
                 child = fork(); // ERROR CHECK ME?
-                char * file_name = strip_new_line(token);
+                //char * file_name = strip_new_line(token);
                 if (child == 0) {
-                    if ((initial_fd = open(file_name, open_mode)) < 0) {
+                    if ((initial_fd = open(tokens[0], open_mode)) < 0) {
                     perror("open");
                     exit(-1);
                 };
                 dup2(initial_fd, new_fd); // ERROR CHECK ME!
                 close(initial_fd); // ERROR CHECK ME!
                 execv(tokens[0], tokens); //ERROR CHECK ME!
-                free(file_name);
                 exit(0);
                 }else{
                     wait(NULL);
@@ -93,14 +97,26 @@ int main (int argc, char * argv[]) {
                 op_flag = 4; // Pipe
             }else {
                 // Save token into tokens then increment
-                tokens[counter++] = token;
+                tokens[counter++] = strip_new_line(token);
                 if (counter % 10 == 0) {
                     // Resize if there are somehow more than 10 optional args
                     tokens = realloc(tokens,counter + 10);
                 }
             }
         }
-        free(tokens);
+        if (op_flag == 0) {
+            pid_t new_child = fork();
+            if (new_child == 0) {
+                if (execv(tokens[0], tokens) == -1) {
+                    perror("execv");
+                }
+                exit(0);
+            } else {
+                 wait(NULL);
+            }
+        }
+        free_tokens(tokens,counter);
+        op_flag = 0;
         printf("Mysh: ");
     }
     return 0;
