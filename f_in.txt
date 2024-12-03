@@ -1,1 +1,1 @@
-This is the text that should be read from test_in
+This is the text that should be read from test_inf

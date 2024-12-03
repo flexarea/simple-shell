@@ -5,6 +5,11 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 
+#define LAST_CMD 2
+#define FIRST_CMD 0
+
+void handle_pipe(int type, int fd_1, int fd_2, char ** tokens);
+
 char * strip_new_line (char * input) {
     char c = *input;
     char *out = malloc(100);
@@ -33,7 +38,10 @@ int main (int argc, char * argv[]) {
     printf("Mysh: ");
     char cmd_buff[4096];
     // Cursed pointers ahead
-    char *** pipe_tokens = malloc(2 * sizeof(char **)); // ERROR CHECK ME!!!!
+    char *** pipe_tokens;
+    if ((pipe_tokens = malloc(2 * sizeof(char **))) == NULL) {
+        return -1;
+    }
     int num_pipes = 0;
     while (fgets(cmd_buff, sizeof(cmd_buff), stdin) != NULL) {
         // Commands have a max of 10 args, so total of 11 b/c cmd name counts?
@@ -44,6 +52,10 @@ int main (int argc, char * argv[]) {
         // Initial Setup
         if ((token = strtok(cmd_buff, " ")) == NULL) {
             return -1;
+        }
+        if (strcmp(token, "\n") == 0) {
+            printf("Mysh: ");
+            continue;
         }
         token = strip_new_line(token);
         // Handle exit
@@ -71,16 +83,23 @@ int main (int argc, char * argv[]) {
                         open_mode = O_WRONLY | O_APPEND;
                         break;
                 }
-                child = fork(); // ERROR CHECK ME?
-                //char * file_name = strip_new_line(token);
+                if ((child = fork()) == -1) {
+                    perror("fork");
+                    return -1;
+                }
+                char * file_name = strip_new_line(token);
                 if (child == 0) {
-                    if ((initial_fd = open(tokens[0], open_mode)) < 0) {
-                    perror("open");
-                    exit(-1);
-                };
+                    if ((initial_fd = open(file_name, open_mode)) < 0) {
+                        perror("open");
+                        exit(-1);
+                    };
+                free(file_name);
                 dup2(initial_fd, new_fd); // ERROR CHECK ME!
                 close(initial_fd); // ERROR CHECK ME!
-                execv(tokens[0], tokens); //ERROR CHECK ME!
+                if (execvp(tokens[0], tokens) == -1){
+                    perror("execvp");
+                    return -1;
+                }
                 exit(0);
                 } else {
                     wait(NULL);
@@ -88,9 +107,10 @@ int main (int argc, char * argv[]) {
                 } 
             }
             if (op_flag == 4) {
-                // HANDLE PIPE
                 pipe_tokens[num_pipes] = tokens;
-                tokens = malloc(11 * sizeof(char *)); // ERROR CHECK ME!
+                if ((tokens = malloc(11 * sizeof(char *))) == NULL) {
+                    return -1;
+                }
                 num_pipes += 1;
                 counter = 0; // RESET counter
             }
@@ -106,7 +126,6 @@ int main (int argc, char * argv[]) {
             } else {
                 // Save (stripped) token into tokens then increment
                 tokens[counter++] = strip_new_line(token);
-                
                 if (counter % 10 == 0) {
                     // Resize if there are somehow more than 10 optional args
                     // Technically not needed, but it can't hurt right?
@@ -114,20 +133,51 @@ int main (int argc, char * argv[]) {
                 }
             }
         }
-        // Loop has ended, we need to handle pipe here for whatever the last argument is.
-        // I need a list of toekns. 
+        pipe_tokens[num_pipes] = tokens;
         if (op_flag == 4) {
-            for (int i = 0; i < num_pipes, i++) {
-                //Process and fork
-                // Inside child:
-                //    handle_pipe(_, _, _)
+            int pipefd[2];
+            for (int i = 0; i <= num_pipes; i++) {
+                // Process and fork
+                char ** tok = pipe_tokens[i];
+                if (i % 2 == 0) {
+                    if (pipe(pipefd) == -1) {
+                        perror("pipe");
+                        return(-1);
+                    }
+                }
+                // fixed weird seg fualt thing (I think)
+                int save_0 = pipefd[0];
+                int save_1 = pipefd[1];
+                pid_t child;
+                if ((child = fork()) == -1) {
+                    perror("fork");
+                    return(-1);
+                }
+                if (child == 0) {
+                    int type = 1;
+                    if (i == 0) {
+                        type = 0;
+                    }
+                    if (i == num_pipes) {
+                        type = 2;
+                    }
+                    handle_pipe(type, save_1, save_0, tok);
+                }
+            }
+            for (int i = 0; i <= num_pipes; i++) {
+                wait(NULL);
             }
         }
         if (op_flag == 0) {
-            pid_t new_child = fork();
+            pid_t new_child;
+            if ((new_child = fork()) == -1) {
+                perror("fork");
+                return(-1);
+            }
             if (new_child == 0) {
-                if (execv(tokens[0], tokens) == -1) {
+                if (execvp(tokens[0], tokens) == -1) {
                     perror("execv");
+                    exit(-1);
                 }
                 exit(0);
             } else {
@@ -141,16 +191,31 @@ int main (int argc, char * argv[]) {
     return 0;
 }
 
-void * handle_pipe(int location, int pipefd[2], char ** tokens) {
+void handle_pipe(int type, int write_fd, int read_fd, char ** tokens) {
     /*
-    location = 0 -> first cmd:
-        - dup2 stdout -> pipefd[0]
-    location = 1 -> any other cmd:
-        - dup2 stdout -> pipefd[0]
-        - dup2 stdin -> pipefd[1]
-    location = 2 -> last cmd:
-        - dup2 stdin -> pipefd[1]
-    ALL:
-    execv(tokens[0], tokens);
+    type = 0 -> first cmd:
+        - dup2 stdout -> write_fd
+    type = 1 -> any other cmd:
+        - dup2 stdout -> write_fd
+        - dup2 stdin -> read_fd
+    type = 2 -> last cmd:
+        - dup2 stdin -> read_fd
     */
+    if (type != LAST_CMD){
+        if (dup2(write_fd, STDOUT_FILENO) == -1) {
+            perror("dup2");
+            exit(-1);
+        }
+    }
+    if (type != FIRST_CMD) {
+       if (dup2(read_fd, STDIN_FILENO) == -1) {
+            perror("dup2");
+            exit(-1);
+        }
+    }
+    if (execvp(tokens[0], tokens) == -1) {
+        perror("execvp");
+        exit(-1);
+    }
+    exit(0);
 }
