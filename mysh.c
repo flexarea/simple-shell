@@ -35,17 +35,19 @@ int main (int argc, char * argv[]) {
 
     while (fgets(cmd_buff, sizeof(cmd_buff), stdin) != NULL) {
         char ** tokens = malloc(10*sizeof(char *));
-        char *token = strtok(cmd_buff, " ");
-        char * first_token = strip_new_line(token);
+        char *token;
+        if ((token = strtok(cmd_buff, " ")) == NULL){
+            return -1;
+        }
+        token = strip_new_line(token);
         int op_flag = 0;
         int counter = 0;
 
-        if (strcmp(first_token, "exit") == 0) {
+        if (strcmp(token, "exit") == 0) {
             free(tokens);
-            free(first_token);
             return 0;
         }
-        tokens[counter++] = first_token; // The ++ is on purpose!
+        tokens[counter++] = token; // The ++ is on purpose!
         while ((token = strtok(NULL, " ")) != NULL) {
             int initial_fd;
             pid_t child;
