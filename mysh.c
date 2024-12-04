@@ -148,7 +148,6 @@ int main (int argc, char * argv[]) {
                 
                 if ((new_child = fork()) == -1) {
                     perror("fork");
-
                     return(-1);
                 }
                 if (new_child == 0) {
@@ -158,6 +157,7 @@ int main (int argc, char * argv[]) {
             }
             for (int i = 0; i <= pipe_counter; i++) {
                 wait(NULL);
+                close(pipe_fd[1]);
             }
         }
         if (op_flag == 0) {
@@ -203,6 +203,7 @@ void handle_pipe(int type, int write_fd, int read_fd, char ** tokens) {
             perror("dup2");
             exit(-1);
         }
+        close(write_fd);
     }
     if (execvp(tokens[0], tokens) == -1) {
         perror("execvp");
