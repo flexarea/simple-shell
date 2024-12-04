@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 
-#define LAST_CMD 2
+#define LAST_CMD 1
 #define FIRST_CMD 0
 
 struct p_tkn {
@@ -21,7 +21,6 @@ void strip_new_line (char * input) {
         *new_line = '\0';
     }
 }
-
 
 int main (int argc, char * argv[]) {
     printf("Mysh: ");
@@ -111,18 +110,20 @@ int main (int argc, char * argv[]) {
                 op_flag = 4; // Pipe
                 if (pipe_counter >= pipe_tkns_len) {
                     // Allocate two extra p_tkn's
-                    puts("extending");
                     pipe_tkns_len = pipe_counter + 2;
                     if ((pipe_tkns = realloc(pipe_tkns, pipe_tkns_len * sizeof(struct p_tkn))) == NULL) {
                         perror("realloc");
                         return -1;
                     };
                 }
+                //printf("Saving token %s to :%d\n",tokens[0], pipe_counter);
                 pipe_tkns[pipe_counter].tkns = tokens;
                 pipe_tkns[pipe_counter].len = counter - 1; 
                 counter = 0;
                 pipe_counter += 1;
-                
+                if ((tokens = malloc(11 * sizeof(char *))) == NULL) {
+                    return -1;
+                }
             } else {
                 // Save (stripped) token into tokens then increment
                 strip_new_line(token);
@@ -135,9 +136,28 @@ int main (int argc, char * argv[]) {
                 }
             }
         }
+        
+        pipe_tkns[pipe_counter].tkns = tokens;
+        pipe_tkns[pipe_counter].len = counter - 1;
         if (op_flag == 4) {
-            for (int i = 0; i < pipe_counter; i ++) {
-                puts("pipe");
+            int pipe_fd[2];
+            pipe(pipe_fd);
+            for (int i = 0; i <= pipe_counter; i ++) {
+                // printf("%s\n",pipe_tkns[i].tkns[0]);
+                pid_t new_child;
+                
+                if ((new_child = fork()) == -1) {
+                    perror("fork");
+
+                    return(-1);
+                }
+                if (new_child == 0) {
+                    handle_pipe(i, pipe_fd[1], pipe_fd[0], pipe_tkns[i].tkns);
+                    exit(0);
+                }
+            }
+            for (int i = 0; i <= pipe_counter; i++) {
+                wait(NULL);
             }
         }
         if (op_flag == 0) {
@@ -188,5 +208,4 @@ void handle_pipe(int type, int write_fd, int read_fd, char ** tokens) {
         perror("execvp");
         exit(-1);
     }
-    exit(0);
 }
