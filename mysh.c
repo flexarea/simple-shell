@@ -15,40 +15,13 @@ struct p_tkn {
 
 void handle_pipe(int type, int fd_1, int fd_2, char ** tokens);
 
-char * strip_new_line (char * input) {
-    char c = *input;
-    char *out;
-    if ((out = malloc(100)) == NULL) {
-        perror("malloc");
-        exit(-1);
+void strip_new_line (char * input) {
+    char * new_line;
+    if ((new_line = strchr(input, '\n')) != NULL) {
+        *new_line = '\0';
     }
-    int counter = 0;
-    // Iterate until we find null char or new line
-    while (c != '\n' && c != '\0') {
-        if (counter % 100 == 0) {
-            if ((out = (char *) realloc(out, counter + 100)) == NULL){
-                perror("realloc");
-                exit(-1);
-            }
-        }
-        out[counter] = c;
-        counter += 1;
-        c = input[counter];
-    }
-    // Tack on null char
-    out[counter] = '\0';
-    if ((out = (char *) realloc(out, counter)) == NULL){
-        perror("realloc");
-        exit(-1);
-    }
-    return out;
 }
-void free_tokens (char ** tokens, int length) {
-    for (int i = 0; i < length; i++) {
-        free(tokens[i]);
-    }
-    free(tokens);
-}
+
 
 int main (int argc, char * argv[]) {
     printf("Mysh: ");
@@ -78,7 +51,7 @@ int main (int argc, char * argv[]) {
             printf("Mysh: ");
             continue;
         }
-        token = strip_new_line(token);
+        strip_new_line(token);
         // Handle exit
         if (strcmp(token, "exit") == 0) {
             free(tokens);
@@ -109,9 +82,9 @@ int main (int argc, char * argv[]) {
                     perror("fork");
                     return -1;
                 }
-                char * file_name = strip_new_line(token);
+                strip_new_line(token);
                 if (child == 0) {
-                    if ((initial_fd = open(file_name, open_mode)) < 0) {
+                    if ((initial_fd = open(token, open_mode)) < 0) {
                         perror("open");
                         exit(-1);
                     };
@@ -136,11 +109,14 @@ int main (int argc, char * argv[]) {
                 op_flag = 3; // Out redirect special
             } else if (strcmp(token,"|") == 0) {
                 op_flag = 4; // Pipe
-                if (pipe_counter > pipe_tkns_len) {
+                if (pipe_counter >= pipe_tkns_len) {
                     // Allocate two extra p_tkn's
                     puts("extending");
-                    pipe_tkns_len = pipe_counter + 1;
-                    pipe_tkns = realloc(pipe_tkns, pipe_tkns_len * sizeof(struct p_tkn));
+                    pipe_tkns_len = pipe_counter + 2;
+                    if ((pipe_tkns = realloc(pipe_tkns, pipe_tkns_len * sizeof(struct p_tkn))) == NULL) {
+                        perror("realloc");
+                        return -1;
+                    };
                 }
                 pipe_tkns[pipe_counter].tkns = tokens;
                 pipe_tkns[pipe_counter].len = counter - 1; 
@@ -149,7 +125,8 @@ int main (int argc, char * argv[]) {
                 
             } else {
                 // Save (stripped) token into tokens then increment
-                tokens[counter] = strip_new_line(token);
+                strip_new_line(token);
+                tokens[counter] = token;
                 counter += 1;
                 if (counter % 10 == 0) {
                     // Resize if there are somehow more than 10 optional args
@@ -179,7 +156,6 @@ int main (int argc, char * argv[]) {
                  wait(NULL);
             }
         }
-        //free_tokens(tokens, counter);
         op_flag = 0;
         printf("Mysh: ");
     }
