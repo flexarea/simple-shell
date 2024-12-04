@@ -1,2 +1,12 @@
-Hope this output redirect worked lol
-Hope this output redirect worked lol
+total 52
+drwxr-xr-x 3 gdwade gdwade   182 Dec  3 19:35 .
+drwxr-xr-x 8 gdwade gdwade   148 Nov 28 13:55 ..
+-rw-r--r-- 1 gdwade gdwade    50 Dec  3 14:03 f_in.txt
+-rw-r--r-- 1 gdwade gdwade     0 Dec  3 19:35 f_out.txt
+drwxr-xr-x 8 gdwade gdwade  4096 Dec  3 19:25 .git
+-rw-r--r-- 1 gdwade gdwade   391 Dec  3 15:33 Makefile
+-rwxr-xr-x 1 gdwade gdwade 17520 Dec  3 19:35 mysh
+-rw-r--r-- 1 gdwade gdwade  5415 Dec  3 19:35 mysh.c
+-rw-r--r-- 1 gdwade gdwade   858 Dec  2 16:56 README
+-rw-r--r-- 1 gdwade gdwade   197 Dec  3 18:46 test_in.c
+-rw-r--r-- 1 gdwade gdwade   108 Dec  2 20:43 test_out.c
